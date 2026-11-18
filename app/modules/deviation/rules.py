@@ -17,4 +17,7 @@ def detect(windows,context):
 
 def apply(state):
     issues,completed=detect(state['windows'],state['context']);state.update(deviations=issues,completed=completed)
+    prior_subjects={r['subject'] for r in state.get('prior_records',[])}
+    if prior_subjects:
+        for issue in issues:issue['note']='存在旧周期记录，不能顶替当前周期访视' if issue['subject'] in prior_subjects else ''
     state['views']['deviation']={'title':'偏离复核','rows':issues,'metrics':{'完成访视':len(completed),'缺失或偏离':len(issues),'缺首次访视':sum(x['code']=='MISSING_PRIMARY' for x in issues)}}

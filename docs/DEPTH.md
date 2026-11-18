@@ -29,6 +29,7 @@
 | TRAP-15 | 检验单位换算 | 静默错算或证据丢失 | 以可复核规则显式处理 | `app/modules/protocol/rules.py` | `tests/test_protocol.py::test_unit_conversion_real` |
 | TRAP-23 | 访视窗末端 | 静默错算或证据丢失 | 以可复核规则显式处理 | `app/modules/windows/rules.py` | `tests/test_windows.py::test_half_open_end` |
 | TRAP-11 | UTC日历归一 | 静默错算或证据丢失 | 以可复核规则显式处理 | `app/modules/windows/rules.py` | `tests/test_windows.py::test_utc_day_equivalence` |
+| TRAP-31 | 筛选失败后重新入组 | 连续计算提前放行，切分丢失旧证据 | 周期归属一次裁决，各模块共用；旧周期记录保留为证据不计入 | `app/cycles.py` | `tests/test_reentry.py::test_prior_visits_do_not_complete_current_cycle` |
 
 ## 对账规则
 

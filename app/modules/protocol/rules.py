@@ -1,6 +1,7 @@
 from app.coerce import instant,number
 from app.errors import BusinessError
 from app.reasons import reject
+from app.cycles import attribute, PRIOR
 
 def choose_protocol(subject,at,context):
     assignments=context['assignments'].get(subject,[])
@@ -13,7 +14,7 @@ def choose_protocol(subject,at,context):
 def normalize(row,context):
     at,enrolled=instant(row['at']),instant(row['enrolled']);revision=number(row['revision'])
     if row['subject'] not in context['subjects']:raise BusinessError('UNKNOWN_SUBJECT','受试者未入组')
-    if enrolled!=instant(context['subjects'][row['subject']]):raise BusinessError('ENROLLMENT_CONFLICT','入组基准不一致')
+    episode=attribute(row['subject'],enrolled,context)
     if at<enrolled or revision<1 or revision%1:raise BusinessError('INVALID_RANGE','访视日期或版本越界')
     if row['kind'] not in {'PRIMARY','RETEST'}:raise BusinessError('BAD_KIND','记录类型无效')
     chosen=choose_protocol(row['subject'],at,context)
@@ -22,11 +23,15 @@ def normalize(row,context):
     value=number(row['value']);factor=context['units'].get(row['unit'])
     if factor is None:raise BusinessError('BAD_UNIT','检验单位无法换算')
     if value<0:raise BusinessError('INVALID_RANGE','检验值小于零')
-    return {**row,'at':at.isoformat(),'enrolled':enrolled.isoformat(),'revision':int(revision),'selected_protocol':chosen,'value_mg_dl':str(value*number(factor))}
+    return {**row,'at':at.isoformat(),'enrolled':enrolled.isoformat(),'revision':int(revision),'selected_protocol':chosen,'value_mg_dl':str(value*number(factor)),**episode}
 
 def apply(state):
-    good=[]
+    good=[];prior=[];rows=[]
     for row in state['records']:
-        try:good.append(normalize(row,state['context']))
+        try:
+            normalized=normalize(row,state['context'])
+            (prior if normalized['cycle_role']==PRIOR else good).append(normalized)
+            rows.append({k:normalized[k] for k in ('id','subject','visit','selected_protocol','at','cycle','cycle_role','cycle_status')})
         except BusinessError as e:reject(state,row,e.code,e.message)
-    state['records']=good;state['views']['protocol']={'title':'受试者方案','rows':[{'id':r['id'],'subject':r['subject'],'visit':r['visit'],'selected_protocol':r['selected_protocol'],'at':r['at']} for r in good],'metrics':{'有效记录':len(good),'方案版本':len(state['context']['plans'])}}
+    state['records']=good;state['prior_records']=prior
+    state['views']['protocol']={'title':'受试者方案','rows':rows,'metrics':{'有效记录':len(good),'旧周期记录':len(prior),'方案版本':len(state['context']['plans'])}}
